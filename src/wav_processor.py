@@ -1,13 +1,13 @@
-# def decibels()
 from pathlib import Path
 from typing import List, Dict
 
 import numpy as np
+from tqdm import tqdm
 from scipy.io.wavfile import read
 
 
 def decibel(chunk: np.ndarray) -> float:
-    return 20 * np.log10(np.sqrt(np.mean(chunk ** 2)))
+    return 20 * np.log10(np.sqrt(chunk.mean()))
 
 
 def get_loudest_chunks(chunks_decibels: list[float], top: int, chunk_duration: int):
@@ -21,13 +21,12 @@ def get_loudest_chunks(chunks_decibels: list[float], top: int, chunk_duration: i
     return data
 
 
-def process(wav_path: Path, chunk_duration: int = 5, top: int = 5) -> List[Dict]:
+def process(wav_path: Path, chunk_duration: int = 7, top: int = 10) -> List[Dict]:
     """
     Cut sound in chunks of given {chunk_duration}, return loudest {top} chunks.
     :return: [{ 'db': intensity in db of chunk, 'start': start time of chunk, 'end': end time of chunk}, ... ]
     """
     samp_rate, wav_data = read(str(wav_path))
-
     chunks_decibels = get_chunks_decibels(chunk_duration, samp_rate, wav_data)
     top_loudest_chunks = get_loudest_chunks(chunks_decibels, top, chunk_duration)
     return top_loudest_chunks
@@ -43,6 +42,8 @@ def get_chunks_decibels(
     :param wav_data: array [channel_right, channel_left] at each point.
     """
     chunk_size = chunk_duration * samp_rate
-    num_chuks = (len(wav_data) // chunk_size) + 1
-    chunks = np.array_split(wav_data, num_chuks)
-    return [decibel(chunk) for chunk in chunks]
+    num_chunks = (len(wav_data) // chunk_size) + 1
+    print(wav_data[:, 1])
+    mono_channel: np.ndarray = np.array(np.abs(wav_data[:, 1]), dtype='uint64')
+    chunks = np.array_split(mono_channel, num_chunks)
+    return [decibel(chunk) for chunk in tqdm(chunks)]
